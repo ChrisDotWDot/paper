@@ -6,7 +6,7 @@ Last Updated on 2024-09-11
 <img src="hlas.png" width="327" />
 
 This is the bot for
-[@protpapers.bsky.social](https://bsky.app/profile/protpapers.bsky.social)
+[@protpapers.bsky.social](https://bsky.app/profile/speechpapers.bsky.social)
 that was inspired and developed from bots created by
 https://github.com/roblanf/phypapers and
 https://github.com/JBGruber/r-bloggers-bluesky.
