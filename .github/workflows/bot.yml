@@ -41,7 +41,8 @@ jobs:
             "jsonlite",
             "dplyr",
             "renv",
-            "tidyRSS"  # Added tidyRSS package
+            "tidyRSS",
+            "lubridate"  # Added lubridate package
           ), dependencies = TRUE)
           
           # Install GitHub packages
