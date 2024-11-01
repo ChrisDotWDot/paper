@@ -15,55 +15,32 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      R_KEEP_PKG_SOURCE: yes
+      R_LIBS_USER: ~/R/library
     steps:
+      - uses: actions/checkout@v3
+
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: 'release'
+          r-version: '4.3.2'
+          use-public-rspm: true
 
-      - name: Setup - Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Setup pandoc
-        uses: r-lib/actions/setup-pandoc@v2
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libxml2-dev \
-            libgit2-dev \
-            build-essential \
-            gcc \
-            g++ \
-            gfortran \
-            libblas-dev \
-            liblapack-dev \
-            libfontconfig1-dev \
-            cmake
-
-      - name: Query dependencies
-        run: |
-          install.packages(c('remotes', 'pak', 'renv'), repos = 'https://cloud.r-project.org')
-          saveRDS(unique(renv::dependencies(".")$Package), ".github/depends.Rds")
-        shell: Rscript {0}
-
-      - name: Cache R packages
-        uses: actions/cache@v3
+      - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          path: ${{ env.R_LIBS_USER }}
-          key: ${{ runner.os }}-${{ hashFiles('.github/depends.Rds') }}
-          restore-keys: ${{ runner.os }}-
+          extra-packages: |
+            any::pak
+            any::renv
+            any::Rcpp
+            any::jsonlite
+            any::dplyr
+            JBGruber/atrrr
 
-      - name: Install dependencies
+      - name: Install remaining dependencies
         run: |
-          deps <- readRDS(".github/depends.Rds")
-          deps[deps == "atrrr"] <- "JBGruber/atrrr"
-          deps <- c(deps, "jsonlite", "dplyr")
-          options(pak.no_extra_messages = TRUE)
-          pak::pak(deps)
+          deps <- unique(renv::dependencies(".")$Package)
+          deps <- deps[!deps %in% c('pak', 'renv', 'Rcpp', 'jsonlite', 'dplyr', 'atrrr')]
+          if (length(deps) > 0) {
+            pak::pak(deps)
+          }
         shell: Rscript {0}
 
       - name: Bot - Run
