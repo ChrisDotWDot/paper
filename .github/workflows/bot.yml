@@ -13,6 +13,9 @@ jobs:
   blog-updates:
     name: bot
     runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
     steps:
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -21,6 +24,9 @@ jobs:
       - name: Setup - Checkout repo
         uses: actions/checkout@v3
 
+      - name: Setup pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -28,23 +34,36 @@ jobs:
             libcurl4-openssl-dev \
             libssl-dev \
             libxml2-dev \
-            libgit2-dev
+            libgit2-dev \
+            build-essential \
+            gcc \
+            g++ \
+            gfortran \
+            libblas-dev \
+            liblapack-dev \
+            libfontconfig1-dev \
+            cmake
 
-      - name: Install R packages
+      - name: Query dependencies
         run: |
-          install.packages(c("pak", "renv"), repos = "https://cloud.r-project.org")
-          deps <- unique(renv::dependencies(".")$Package)
+          install.packages(c('remotes', 'pak', 'renv'), repos = 'https://cloud.r-project.org')
+          saveRDS(unique(renv::dependencies(".")$Package), ".github/depends.Rds")
+        shell: Rscript {0}
+
+      - name: Cache R packages
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: ${{ runner.os }}-${{ hashFiles('.github/depends.Rds') }}
+          restore-keys: ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          deps <- readRDS(".github/depends.Rds")
           deps[deps == "atrrr"] <- "JBGruber/atrrr"
           deps <- c(deps, "jsonlite", "dplyr")
           options(pak.no_extra_messages = TRUE)
-          tryCatch(
-            pak::pkg_install(deps),
-            error = function(e) {
-              message("Error details: ", conditionMessage(e))
-              print(sessionInfo())
-              stop(e)
-            }
-          )
+          pak::pak(deps)
         shell: Rscript {0}
 
       - name: Bot - Run
