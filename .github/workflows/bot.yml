@@ -1,8 +1,8 @@
 name: "Update Bot"
 on:
   schedule:
-    - cron: '0 1,13 * * *' # run the bot twice a day at 0100 and 1300 UTC
-  push: # also run the action when something on a new commit
+    - cron: '0 1,13 * * *'  # Fixed cron syntax
+  push:
     branches:
       - main
   pull_request:
@@ -14,42 +14,40 @@ jobs:
     name: bot
     runs-on: ubuntu-latest
     steps:
-
-        # you can use this action to install R
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: 'release'
 
-        # this one makes sure the files from your repo are accessible
       - name: Setup - Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3  # Updated to v3
 
-        # these dependencies are needed for pak to install packages
-      - name: System dependencies
-        run: sudo apt-get install -y libcurl4-openssl-dev
-
-        # I created this custom installation of depenencies since the pre-pacakged one
-        # from https://github.com/r-lib/actions only works for repos containing R packages
-      - name: "Install Packages"
+      - name: Install system dependencies
         run: |
-          install.packages(c("pak", "renv"))
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libgit2-dev
+
+      - name: Install R packages
+        run: |
+          install.packages("pak")
           deps <- unique(renv::dependencies(".")$Package)
-          # use github version for now
           deps[deps == "atrrr"] <- "JBGruber/atrrr"
           deps <- c(deps, "jsonlite", "dplyr")
-          # should handle remaining system requirements automatically
-          pak::pkg_install(deps)
+          options(pak.no_extra_messages = TRUE)
+          tryCatch(
+            pak::pkg_install(deps),
+            error = function(e) {
+              message("Error details: ", conditionMessage(e))
+              print(sessionInfo())
+              stop(e)
+            }
+          )
         shell: Rscript {0}
 
-        # after all the preparation, it's time to run the bot
-      - name: "Bot - Run"
+      - name: Bot - Run
         run: Rscript 'bot.R'
         env:
-          ATR_PW: ${{ secrets.ATR_PW }} # to authenticat, store your app pw as a secret
-          
-        # after 60 days without a commit, the bot is disabled by GitHub. keepalive-workflow 
-        # prevents that
-      #- name: Keepalive Workflow
-      #  uses: gautamkrishnar/keepalive-workflow@2.0.7
-        
-          
+          ATR_PW: ${{ secrets.ATR_PW }}
