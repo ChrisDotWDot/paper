@@ -40,7 +40,8 @@ jobs:
             "Rcpp",
             "jsonlite",
             "dplyr",
-            "renv"
+            "renv",
+            "tidyRSS"  # Added tidyRSS package
           ), dependencies = TRUE)
           
           # Install GitHub packages
