@@ -13,34 +13,38 @@ jobs:
   blog-updates:
     name: bot
     runs-on: ubuntu-latest
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      R_LIBS_USER: ~/R/library
     steps:
       - uses: actions/checkout@v3
 
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: '4.3.2'
-          use-public-rspm: true
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: |
-            any::pak
-            any::renv
-            any::Rcpp
-            any::jsonlite
-            any::dplyr
-            JBGruber/atrrr
-
-      - name: Install remaining dependencies
+      - name: Install system dependencies
         run: |
-          deps <- unique(renv::dependencies(".")$Package)
-          deps <- deps[!deps %in% c('pak', 'renv', 'Rcpp', 'jsonlite', 'dplyr', 'atrrr')]
-          if (length(deps) > 0) {
-            pak::pak(deps)
-          }
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libgit2-dev \
+            build-essential
+
+      - name: Install packages
+        run: |
+          # First install pak
+          install.packages("pak", repos = "https://cloud.r-project.org")
+          
+          # Install core packages including Rcpp from binary
+          pak::pkg_install(c(
+            "Rcpp",
+            "jsonlite",
+            "dplyr",
+            "renv"
+          ), dependencies = TRUE)
+          
+          # Install GitHub packages
+          pak::pkg_install("JBGruber/atrrr")
         shell: Rscript {0}
 
       - name: Bot - Run
