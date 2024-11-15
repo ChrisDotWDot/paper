@@ -31,8 +31,9 @@ jobs:
             build-essential
 
       - name: Install packages
+        env:
+          GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # First install pak
           install.packages("pak", repos = "https://cloud.r-project.org")
           
           # Install core packages including Rcpp from binary
@@ -42,11 +43,11 @@ jobs:
             "dplyr",
             "renv",
             "tidyRSS",
-            "lubridate"  # Added lubridate package
+            "lubridate"
           ), dependencies = TRUE)
           
-          # Install GitHub packages
-          pak::pkg_install("JBGruber/atrrr")
+          # Install GitHub packages with explicit token
+          pak::pkg_install("JBGruber/atrrr", auth_token = Sys.getenv("GITHUB_PAT"))
         shell: Rscript {0}
 
       - name: Bot - Run
