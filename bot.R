@@ -1,4 +1,4 @@
-# Bot script adapted from https://github.com/JBGruber/r-bloggers-bluesky bot.r
+## Bot script adapted from https://github.com/JBGruber/r-bloggers-bluesky bot.r
 # A.Bailey 2024-09-10
 
 ## packages
