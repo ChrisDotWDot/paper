@@ -50,16 +50,15 @@ if (pw == "") {
   stop("ATR_PW environment variable is not set")
 }
 
-# Try authentication with domain settings
+# Simplified authentication attempt
 tryCatch({
   atrrr::auth(
-    user = "speechpapers",  # Try without .bsky.social
-    password = pw,
-    domain = "bsky.social"  # Explicitly set the domain
+    user = "speechpapers.bsky.social",
+    password = pw
   )
   message("Authentication successful")
 }, error = function(e) {
-  message("Authentication error: ", conditionMessage(e))
+  message("Authentication error details:", e)
   stop(e)
 })
 
@@ -68,6 +67,7 @@ old_posts <- tryCatch({
   get_skeets_authored_by("speechpapers.bsky.social", limit = 5000L)
 }, error = function(e) {
   message("Error getting existing posts: ", e$message)
+  # Return empty dataframe with required structure if fetch fails
   data.frame(text = character(0))
 })
 
@@ -75,17 +75,32 @@ old_posts <- tryCatch({
 posts_new <- posts |>
   filter(!post_text %in% old_posts$text)
 
-## Part 4: Post skeets with basic error handling
+## Part 4: Post skeets with enhanced error handling
 for (i in seq_len(nrow(posts_new))) {
-  tryCatch({
-    post_skeet(
-      text = posts_new$post_text[i],
-      created_at = posts_new$timestamp[i],
-      preview_card = FALSE
-    )
-    message(sprintf("Successfully posted %d of %d", i, nrow(posts_new)))
-    Sys.sleep(2)  # Add small delay between posts
-  }, error = function(e) {
-    message(sprintf("Failed to post %d: %s", i, e$message))
-  })
+  max_retries <- 3
+  retry_count <- 0
+  post_success <- FALSE
+  
+  while (!post_success && retry_count < max_retries) {
+    retry_count <- retry_count + 1
+    
+    tryCatch({
+      resp <- post_skeet(
+        text = posts_new$post_text[i],
+        created_at = posts_new$timestamp[i],
+        preview_card = FALSE
+      )
+      post_success <- TRUE
+      message(sprintf("Successfully posted skeet %d of %d", i, nrow(posts_new)))
+      Sys.sleep(2)  # Wait between posts
+    }, error = function(e) {
+      message(sprintf("Attempt %d failed for post %d: %s", 
+                     retry_count, i, e$message))
+      if (retry_count == max_retries) {
+        warning(sprintf("Failed to post skeet %d after %d attempts", 
+                       i, max_retries))
+      }
+      Sys.sleep(2)  # Wait before retry
+    })
+  }
 }
