@@ -74,13 +74,8 @@ tryCatch({
          overwrite = TRUE)
     auth_success <- TRUE
   }, error = function(e2) {
-    message("Second authentication attempt failed, trying with explicit service...")
-    # Third attempt with explicit service URL
-    auth(identifier = "speechpapers.bsky.social",
-         password = pw,
-         service = "https://bsky.social",
-         overwrite = TRUE)
-    auth_success <- TRUE
+    message("Both authentication attempts failed")
+    stop(e2)
   })
 })
 
