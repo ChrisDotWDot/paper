@@ -20,17 +20,7 @@ jobs:
         with:
           r-version: '4.3.2'
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libxml2-dev \
-            libgit2-dev \
-            build-essential
-
-      - name: Install packages
+- name: Install packages
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
@@ -41,7 +31,7 @@ jobs:
           # Install pak
           install.packages("pak", repos = "https://cloud.r-project.org")
           
-          # Install all packages including GitHub package
+          # Install all packages including GitHub package with specific commit
           pak::pkg_install(c(
             "Rcpp",
             "jsonlite",
@@ -49,7 +39,7 @@ jobs:
             "renv",
             "tidyRSS",
             "lubridate",
-            "JBGruber/atrrr"
+            "JBGruber/atrrr@c77b492"  # Using a specific commit
           ), dependencies = TRUE)
         shell: Rscript {0}
 
