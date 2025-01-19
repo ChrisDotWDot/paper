@@ -24,66 +24,68 @@ brv <- map_df(brv_feeds, tidyfeed)
 
 # Filter for biorxiv feed keywords and trim the link
 brv_filt <- brv |> 
- filter(str_detect(item_title, "Speech")) |> 
- mutate(link = str_extract(item_link,"^.*?[^?]*"))
+  filter(str_detect(item_title, "Speech")) |> 
+  mutate(link = str_extract(item_link,"^.*?[^?]*"))
 
 # Filter for Pubmed feed for keywords and publication of no earlier than last 30 days and trim link
 pubmed_filt <- pubmed_df |> 
- filter(str_detect(item_title, "speech"),
-        item_pub_date >= today() - 29) |> 
- mutate(link = str_extract(item_link,"^.*?[^?]*"))
+  filter(str_detect(item_title, "speech"),
+         item_pub_date >= today() - 29) |> 
+  mutate(link = str_extract(item_link,"^.*?[^?]*"))
 
 # Filter posts for unique titles
 rss_posts <- bind_rows(brv_filt |> select(item_title,item_description,link),
-                     pubmed_filt |> select(item_title,item_description,link)) |> 
- distinct(item_title, .keep_all = T)  
+                      pubmed_filt |> select(item_title,item_description,link)) |> 
+  distinct(item_title, .keep_all = T)  
 
 ## Part 2: create posts from feed using paper title and link
 posts <- rss_posts |>
- mutate(post_text = glue("{item_title} {link}"), # Needs to be <300 characters
-        timestamp = now()) # Add timestamp
+  mutate(post_text = glue("{item_title} {link}"), # Needs to be <300 characters
+         timestamp = now()) # Add timestamp
 
 ## Part 3: get already posted updates and de-duplicate
 pw <- Sys.getenv("ATR_PW")
 
 if (pw == "") {
- stop("ATR_PW environment variable is not set")
+  stop("ATR_PW environment variable is not set")
 }
 
-# Basic authentication that works with older version
+# Try authentication with domain settings
 tryCatch({
- atrrr::login(
-   identifier = "speechpapers.bsky.social",
-   password = pw
- )
- message("Authentication successful")
+  atrrr::auth(
+    user = "speechpapers",  # Try without .bsky.social
+    password = pw,
+    domain = "bsky.social"  # Explicitly set the domain
+  )
+  message("Authentication successful")
 }, error = function(e) {
- message("Authentication error: ", conditionMessage(e))
- stop(e)
+  message("Authentication error: ", conditionMessage(e))
+  stop(e)
 })
 
 # Check for existing posts with error handling
 old_posts <- tryCatch({
- get_posts_authored_by("speechpapers.bsky.social", limit = 5000L)
+  get_skeets_authored_by("speechpapers.bsky.social", limit = 5000L)
 }, error = function(e) {
- message("Error getting existing posts: ", e$message)
- data.frame(text = character(0))
+  message("Error getting existing posts: ", e$message)
+  data.frame(text = character(0))
 })
 
 # Filter to post only new stuff
 posts_new <- posts |>
- filter(!post_text %in% old_posts$text)
+  filter(!post_text %in% old_posts$text)
 
 ## Part 4: Post skeets with basic error handling
 for (i in seq_len(nrow(posts_new))) {
- tryCatch({
-   post_text(
-     text = posts_new$post_text[i],
-     created_at = posts_new$timestamp[i]
-   )
-   message(sprintf("Successfully posted %d of %d", i, nrow(posts_new)))
-   Sys.sleep(2)  # Add small delay between posts
- }, error = function(e) {
-   message(sprintf("Failed to post %d: %s", i, e$message))
- })
+  tryCatch({
+    post_skeet(
+      text = posts_new$post_text[i],
+      created_at = posts_new$timestamp[i],
+      preview_card = FALSE
+    )
+    message(sprintf("Successfully posted %d of %d", i, nrow(posts_new)))
+    Sys.sleep(2)  # Add small delay between posts
+  }, error = function(e) {
+    message(sprintf("Failed to post %d: %s", i, e$message))
+  })
 }
