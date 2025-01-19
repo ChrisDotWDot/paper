@@ -11,19 +11,13 @@ library(glue)
 library(purrr)
 library(xml2)
 
-# Print package version for debugging
-message("atrrr version: ", as.character(packageVersion("atrrr")))
-
 ## Part 1: read RSS feed
 # Vector of Pubmed feeds from search terms: 
-# immunopeptidom*[tiab]
-# hdx-ms[tiab]
-# immunopeptidom*[tiab] AND neoantigen*[tiab]
 pubmed_feeds <- c("https://pubmed.ncbi.nlm.nih.gov/rss/search/1Vu-RtW34K22uP7FKBpdRmDjVSeiYxkTVLmNY43ot8d0uhoEAV/?limit=100&utm_campaign=pubmed-2&fc=20240913065033")
 # Read all the PubMed feeds
 pubmed_df <- map_df(pubmed_feeds, tidyfeed) 
 
-# Vector of feeds of possible interest from bioRxiv, yields the last 30 days
+# Vector of feeds of possible interest from bioRxiv
 brv_feeds <- c("http://connect.biorxiv.org/biorxiv_xml.php?subject=neuroscience")
 # Read all the bioRxiv feeds
 brv <- map_df(brv_feeds, tidyfeed)
@@ -50,18 +44,16 @@ posts <- rss_posts |>
         timestamp = now()) # Add timestamp
 
 ## Part 3: get already posted updates and de-duplicate
-Sys.setenv(BSKY_TOKEN = "papers_token.rds")
 pw <- Sys.getenv("ATR_PW")
 
 if (pw == "") {
  stop("ATR_PW environment variable is not set")
 }
 
-# Simple authentication with error catching
+# Basic authentication that works with older version
 tryCatch({
- # Single authentication attempt
- auth(
-   user = "speechpapers.bsky.social",
+ atrrr::login(
+   identifier = "speechpapers.bsky.social",
    password = pw
  )
  message("Authentication successful")
@@ -72,10 +64,9 @@ tryCatch({
 
 # Check for existing posts with error handling
 old_posts <- tryCatch({
- get_skeets_authored_by("speechpapers.bsky.social", limit = 5000L)
+ get_posts_authored_by("speechpapers.bsky.social", limit = 5000L)
 }, error = function(e) {
  message("Error getting existing posts: ", e$message)
- # Return empty dataframe with required structure if fetch fails
  data.frame(text = character(0))
 })
 
@@ -83,31 +74,16 @@ old_posts <- tryCatch({
 posts_new <- posts |>
  filter(!post_text %in% old_posts$text)
 
-## Part 4: Post skeets with enhanced error handling
+## Part 4: Post skeets with basic error handling
 for (i in seq_len(nrow(posts_new))) {
- max_retries <- 3
- retry_count <- 0
- post_success <- FALSE
- 
- while (!post_success && retry_count < max_retries) {
-   retry_count <- retry_count + 1
-   
-   tryCatch({
-     resp <- post_skeet(
-       text = posts_new$post_text[i],
-       created_at = posts_new$timestamp[i],
-       preview_card = FALSE
-     )
-     post_success <- TRUE
-     message(sprintf("Successfully posted skeet %d of %d", i, nrow(posts_new)))
-   }, error = function(e) {
-     message(sprintf("Attempt %d failed for post %d: %s", 
-                    retry_count, i, e$message))
-     if (retry_count == max_retries) {
-       warning(sprintf("Failed to post skeet %d after %d attempts", 
-                      i, max_retries))
-     }
-     Sys.sleep(2)  # Wait 2 seconds before retrying
-   })
- }
+ tryCatch({
+   post_text(
+     text = posts_new$post_text[i],
+     created_at = posts_new$timestamp[i]
+   )
+   message(sprintf("Successfully posted %d of %d", i, nrow(posts_new)))
+   Sys.sleep(2)  # Add small delay between posts
+ }, error = function(e) {
+   message(sprintf("Failed to post %d: %s", i, e$message))
+ })
 }
