@@ -12,7 +12,7 @@ library(purrr)
 library(xml2)
 
 # Print package version for debugging
-cat("atrrr version:", packageVersion("atrrr"), "\n")
+message("atrrr version: ", as.character(packageVersion("atrrr")))
 
 ## Part 1: read RSS feed
 # Vector of Pubmed feeds from search terms: 
