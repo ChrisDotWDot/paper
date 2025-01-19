@@ -37,7 +37,7 @@ jobs:
           # Install pak
           install.packages("pak", repos = "https://cloud.r-project.org")
           
-          # Install all packages including GitHub package with specific commit
+          # Install all packages
           pak::pkg_install(c(
             "Rcpp",
             "jsonlite",
@@ -45,7 +45,7 @@ jobs:
             "renv",
             "tidyRSS",
             "lubridate",
-            "JBGruber/atrrr@c77b492"
+            "JBGruber/atrrr"
           ), dependencies = TRUE)
         shell: Rscript {0}
       - name: Bot - Run
