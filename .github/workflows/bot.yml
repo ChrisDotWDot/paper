@@ -31,20 +31,20 @@ jobs:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
         run: |
-          # Install remotes instead of pak
-          install.packages("remotes", repos = "https://cloud.r-project.org")
+          # First set the token in R
+          Sys.setenv(GITHUB_PAT = Sys.getenv("GITHUB_PAT"))
           
-          # Install required packages
-          remotes::install_version("Rcpp", version = "1.0.11")
-          remotes::install_version("jsonlite", version = "1.8.7")
-          remotes::install_version("dplyr", version = "1.1.3")
-          remotes::install_version("tidyRSS", version = "2.0.7")
-          remotes::install_version("lubridate", version = "1.9.3")
+          # Install pak
+          install.packages("pak", repos = "https://cloud.r-project.org")
           
-          # Install specific version of atrrr
-          remotes::install_github("JBGruber/atrrr", ref = "v0.0.3")
+          # Install all packages including GitHub package
+          pak::pkg_install(c(
+            "Rcpp",
+            "jsonlite",
+            "dplyr",
+            "renv",
+            "tidyRSS",
+            "lubridate",
+            "JBGruber/atrrr"
+          ), dependencies = TRUE)
         shell: Rscript {0}
-      - name: Bot - Run
-        run: Rscript 'bot.R'
-        env:
-          ATR_PW: ${{ secrets.ATR_PW }}
