@@ -1,7 +1,7 @@
 name: "Update Bot"
 on:
   schedule:
-    - cron: '0 1,13 * * *'  # Runs at 1:00 and 13:00 UTC every day
+    - cron: '0 1,13 * * *'
   push:
     branches:
       - main
@@ -31,22 +31,18 @@ jobs:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
         run: |
-          # First set the token in R
-          Sys.setenv(GITHUB_PAT = Sys.getenv("GITHUB_PAT"))
+          # Install remotes instead of pak
+          install.packages("remotes", repos = "https://cloud.r-project.org")
           
-          # Install pak
-          install.packages("pak", repos = "https://cloud.r-project.org")
+          # Install required packages
+          remotes::install_version("Rcpp", version = "1.0.11")
+          remotes::install_version("jsonlite", version = "1.8.7")
+          remotes::install_version("dplyr", version = "1.1.3")
+          remotes::install_version("tidyRSS", version = "2.0.7")
+          remotes::install_version("lubridate", version = "1.9.3")
           
-          # Install all packages
-          pak::pkg_install(c(
-            "Rcpp",
-            "jsonlite",
-            "dplyr",
-            "renv",
-            "tidyRSS",
-            "lubridate",
-            "JBGruber/atrrr"
-          ), dependencies = TRUE)
+          # Install specific version of atrrr
+          remotes::install_github("JBGruber/atrrr", ref = "v0.0.3")
         shell: Rscript {0}
       - name: Bot - Run
         run: Rscript 'bot.R'
