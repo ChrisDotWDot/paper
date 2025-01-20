@@ -1,6 +1,4 @@
 ## Bot script adapted from https://github.com/JBGruber/r-bloggers-bluesky bot.r
-# A.Bailey 2024-09-10
-## packages
 library(tidyRSS)
 library(atrrr)
 library(anytime)
@@ -12,95 +10,65 @@ library(purrr)
 library(xml2)
 
 ## Part 1: read RSS feed
-# Vector of Pubmed feeds from search terms: 
 pubmed_feeds <- c("https://pubmed.ncbi.nlm.nih.gov/rss/search/1Vu-RtW34K22uP7FKBpdRmDjVSeiYxkTVLmNY43ot8d0uhoEAV/?limit=100&utm_campaign=pubmed-2&fc=20240913065033")
-# Read all the PubMed feeds
 pubmed_df <- map_df(pubmed_feeds, tidyfeed) 
 
-# Vector of feeds of possible interest from bioRxiv
 brv_feeds <- c("http://connect.biorxiv.org/biorxiv_xml.php?subject=neuroscience")
-# Read all the bioRxiv feeds
 brv <- map_df(brv_feeds, tidyfeed)
 
-# Filter for biorxiv feed keywords and trim the link
 brv_filt <- brv |> 
   filter(str_detect(item_title, "Speech")) |> 
   mutate(link = str_extract(item_link,"^.*?[^?]*"))
 
-# Filter for Pubmed feed for keywords and publication of no earlier than last 30 days and trim link
 pubmed_filt <- pubmed_df |> 
   filter(str_detect(item_title, "speech"),
          item_pub_date >= today() - 29) |> 
   mutate(link = str_extract(item_link,"^.*?[^?]*"))
 
-# Filter posts for unique titles
 rss_posts <- bind_rows(brv_filt |> select(item_title,item_description,link),
                       pubmed_filt |> select(item_title,item_description,link)) |> 
   distinct(item_title, .keep_all = T)  
 
-## Part 2: create posts from feed using paper title and link
+## Part 2: create posts
 posts <- rss_posts |>
-  mutate(post_text = glue("{item_title} {link}"), # Needs to be <300 characters
-         timestamp = now()) # Add timestamp
+  mutate(post_text = glue("{item_title} {link}"),
+         timestamp = now())
 
-## Part 3: get already posted updates and de-duplicate
+## Part 3: authenticate and check existing posts
 pw <- Sys.getenv("ATR_PW")
+if (pw == "") stop("ATR_PW environment variable is not set")
 
-if (pw == "") {
-  stop("ATR_PW environment variable is not set")
-}
-
-# Simplified authentication attempt
 tryCatch({
-  atrrr::auth(
-    user = "speechpapers.bsky.social",
+  atrrr::post_auth(
+    handle = "speechpapers.bsky.social",
     password = pw
   )
   message("Authentication successful")
 }, error = function(e) {
-  message("Authentication error details:", e)
+  message("Authentication error: ", conditionMessage(e))
   stop(e)
 })
 
-# Check for existing posts with error handling
 old_posts <- tryCatch({
-  get_skeets_authored_by("speechpapers.bsky.social", limit = 5000L)
+  posts_by("speechpapers.bsky.social", limit = 5000L)
 }, error = function(e) {
   message("Error getting existing posts: ", e$message)
-  # Return empty dataframe with required structure if fetch fails
   data.frame(text = character(0))
 })
 
-# Filter to post only new stuff
 posts_new <- posts |>
   filter(!post_text %in% old_posts$text)
 
-## Part 4: Post skeets with enhanced error handling
+## Part 4: Post content
 for (i in seq_len(nrow(posts_new))) {
-  max_retries <- 3
-  retry_count <- 0
-  post_success <- FALSE
-  
-  while (!post_success && retry_count < max_retries) {
-    retry_count <- retry_count + 1
-    
-    tryCatch({
-      resp <- post_skeet(
-        text = posts_new$post_text[i],
-        created_at = posts_new$timestamp[i],
-        preview_card = FALSE
-      )
-      post_success <- TRUE
-      message(sprintf("Successfully posted skeet %d of %d", i, nrow(posts_new)))
-      Sys.sleep(2)  # Wait between posts
-    }, error = function(e) {
-      message(sprintf("Attempt %d failed for post %d: %s", 
-                     retry_count, i, e$message))
-      if (retry_count == max_retries) {
-        warning(sprintf("Failed to post skeet %d after %d attempts", 
-                       i, max_retries))
-      }
-      Sys.sleep(2)  # Wait before retry
-    })
-  }
+  tryCatch({
+    post(
+      text = posts_new$post_text[i],
+      created_at = posts_new$timestamp[i]
+    )
+    message(sprintf("Successfully posted %d of %d", i, nrow(posts_new)))
+    Sys.sleep(2)
+  }, error = function(e) {
+    message(sprintf("Failed to post %d: %s", i, e$message))
+  })
 }
