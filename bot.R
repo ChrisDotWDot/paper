@@ -25,7 +25,7 @@ brv <- map_df(brv_feeds, tidyfeed)
 
 # Filter for biorxiv feed keywords and trim the link
 brv_filt <- brv |> 
-  filter(str_detect(item_title, "Speech")) |> 
+  filter(str_detect(item_title, "speech")) |> 
   mutate(link = str_extract(item_link,"^.*?[^?]*"))
 
 # Filter for Pubmed feed keywords, recent publications, and trim link
