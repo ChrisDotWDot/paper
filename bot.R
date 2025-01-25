@@ -1,7 +1,6 @@
 ## packages
 library(tidyRSS)
 library(atrrr)
-library(anytime)
 library(lubridate)
 library(dplyr)
 library(stringr)
@@ -45,14 +44,15 @@ posts <- rss_posts |>
          timestamp = now()) # Add timestamp
 
 ## Part 3: Authentication
-Sys.setenv(BSKY_TOKEN = "papers_token.rds")
+# Load the app password from environment variable
 pw <- Sys.getenv("BSKY_APP_PASSWORD")
 
+# Authenticate to Bluesky
 auth(user = "speechpapers.bsky.social",
      password = pw,
      overwrite = TRUE)
 
-# Check for existing posts
+# Check for existing posts to avoid duplicates
 old_posts <- get_skeets_authored_by("speechpapers.bsky.social", limit = 5000L)
 
 # Filter to post only new stuff
@@ -62,13 +62,20 @@ posts_new <- posts |>
 ## Part 4: Post skeets
 for (i in seq_len(nrow(posts_new))) {
   tryCatch({
-    post_skeet(
+    result <- post_skeet(
       text = posts_new$post_text[i],
       created_at = posts_new$timestamp[i],
       preview_card = FALSE
     )
+    # Log successful posts
+    message("Successfully posted: ", posts_new$post_text[i])
   }, error = function(e) {
+    # Detailed error logging
     message("Failed to post: ", posts_new$post_text[i])
-    message("Error: ", e$message)
+    message("Full error details: ", toString(e))
+    
+    # Optional: Log errors to a file
+    write(paste("Error posting:", posts_new$post_text[i], "Error:", toString(e)), 
+          file = "bluesky_post_errors.log", append = TRUE)
   })
 }
