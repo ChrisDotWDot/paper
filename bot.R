@@ -11,7 +11,7 @@ library(xml2)
 ## Part 1: read RSS feed
 
 # Vector of Pubmed feeds from search terms: 
-pubmed_feeds <- c("https://pubmed.ncbi.nlm.nih.gov/rss/search/1Vu-RtW34K22uP7FKBpdRmDjVSeiYxkTVLmNY43ot8d0uhoEAV/?limit=100&utm_campaign=pubmed-2&fc=20240913065033")
+pubmed_feeds <- c("https://pubmed.ncbi.nlm.nih.gov/rss/search/1H9AR3ZQQCaH18XJmZjvELYBadSZGaorxW0NnaqVNWn8GIEkJ4/?limit=15&utm_campaign=pubmed-2&fc=20250125192025")
 
 # Read all the PubMed feeds
 pubmed_df <- map_df(pubmed_feeds, tidyfeed) 
