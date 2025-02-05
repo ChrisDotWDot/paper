@@ -10,3 +10,40 @@
 *.rds
 delete-*
 config.json
+# Environment and credentials
+.env
+.Renviron
+*.key
+*.pem
+id_rsa
+id_ed25519
+credentials.json
+
+# Secrets and tokens
+*password*
+*secret*
+*token*
+
+# AWS credentials
+aws_access_key_id
+aws_secret_access_key
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
