@@ -1,0 +1,60 @@
+name: Check Sensitive Files
+on: [push, pull_request]
+
+jobs:
+  check-sensitive-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Check for sensitive files
+        run: |
+          # List of patterns to check for
+          SENSITIVE_PATTERNS=(
+            '.env'
+            '.Renviron'
+            '*.key'
+            '*.pem'
+            'id_rsa'
+            'id_ed25519'
+            'credentials.json'
+            '*password*'
+            '*secret*'
+            '*token*'
+            'aws_access_key_id'
+            'aws_secret_access_key'
+          )
+          
+          # Initialize flag for found files
+          FOUND_SENSITIVE=0
+          
+          # Check if files matching patterns are tracked by git
+          for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+            FOUND=$(git ls-files | grep -i "$pattern" || true)
+            if [ ! -z "$FOUND" ]; then
+              echo "⚠️ WARNING: Found potentially sensitive files matching pattern '$pattern':"
+              echo "$FOUND"
+              FOUND_SENSITIVE=1
+            fi
+          done
+          
+          # Check if .gitignore exists and contains common sensitive patterns
+          if [ ! -f .gitignore ]; then
+            echo "⚠️ WARNING: No .gitignore file found!"
+            FOUND_SENSITIVE=1
+          else
+            for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+              if ! grep -q "$pattern" .gitignore; then
+                echo "⚠️ WARNING: .gitignore is missing pattern for '$pattern'"
+                FOUND_SENSITIVE=1
+              fi
+            done
+          fi
+          
+          # Fail the workflow if sensitive files were found
+          if [ $FOUND_SENSITIVE -eq 1 ]; then
+            echo "❌ Sensitive files or missing .gitignore patterns detected!"
+            exit 1
+          else
+            echo "✅ No sensitive files detected and .gitignore patterns look good!"
+          fi
