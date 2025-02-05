@@ -45,7 +45,7 @@ posts <- rss_posts |>
 
 ## Part 3: Authentication
 # Load the app password from environment variable
-pw <- Sys.getenv("BSKY_APP_PASSWORD")
+pw <- Sys.getenv("ATR_PW")
 
 # Authenticate to Bluesky
 auth(user = "speechpapers.bsky.social",
