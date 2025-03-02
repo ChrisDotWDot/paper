@@ -159,7 +159,7 @@ jobs:
           EOF
           
           # Run the diagnostic script
-          Rscript bluesky_diagnostic.R > diagnostic_output.log 2>&1
+          Rscript diagnostic-bluesky-script.R > diagnostic_output.log 2>&1
           
           # Display the log
           cat diagnostic_output.log
