@@ -167,7 +167,7 @@ jobs:
           # Now run the actual script if diagnostics look good
           Rscript -e '
           tryCatch({
-            source("feed-blueskyer.R")
+            source("bot.R")
             cat("Main script executed successfully\n")
           }, error = function(e) {
             cat("ERROR IN MAIN SCRIPT:", conditionMessage(e), "\n")
