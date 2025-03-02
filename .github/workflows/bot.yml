@@ -1,24 +1,28 @@
 name: "Update Bot"
 on:
   schedule:
-    - cron: '0 1,13 * * *'
+    - cron: '0 1,13 * * *'  # Runs twice daily at 1:00 and 13:00 UTC
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Added manual trigger option for testing
+  workflow_dispatch:  # Manual trigger for testing
 
 jobs:
-  blog-updates:
+  feed-updates:
     name: bot
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: r-lib/actions/setup-r@v2
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
         with:
           r-version: '4.3.2'
+          
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -28,7 +32,8 @@ jobs:
             libxml2-dev \
             libgit2-dev \
             build-essential
-      - name: Install packages
+            
+      - name: Install R packages
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
@@ -39,7 +44,7 @@ jobs:
           # Install pak
           install.packages("pak", repos = "https://cloud.r-project.org")
           
-          # Install all packages including GitHub package
+          # Install all required packages
           pak::pkg_install(c(
             "Rcpp",
             "jsonlite",
@@ -55,133 +60,24 @@ jobs:
           ), dependencies = TRUE)
         shell: Rscript {0}
       
-      - name: Run bot with diagnostics
+      - name: Run bot
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           ATR_PW: ${{ secrets.ATR_PW }}
           R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
         run: |
-          # Create diagnostic script
-          cat > diagnostic-bluesky-script.R << 'EOF'
-          cat("=== DIAGNOSTIC MODE ACTIVE ===\n")
-          cat("Script started at:", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\n")
+          # Run the bot script directly
+          Rscript bot.R
           
-          ## Environment check
-          cat("\n=== ENVIRONMENT CHECK ===\n")
-          cat("R version:", R.version.string, "\n")
-          cat("Platform:", Sys.info()["sysname"], "\n")
-          cat("Working directory:", getwd(), "\n")
-          cat("Files in directory:", paste(list.files(), collapse=", "), "\n")
-          
-          # Check ATR_PW env variable
-          cat("ATR_PW environment variable check:", 
-              ifelse(Sys.getenv("ATR_PW") != "", "EXISTS", "MISSING"), 
-              "- Length:", nchar(Sys.getenv("ATR_PW")), "characters\n")
-          
-          if (nchar(Sys.getenv("ATR_PW")) > 0) {
-            cat("First character of ATR_PW:", substr(Sys.getenv("ATR_PW"), 1, 1), "\n")
-            cat("Last character of ATR_PW:", 
-                substr(Sys.getenv("ATR_PW"), nchar(Sys.getenv("ATR_PW")), nchar(Sys.getenv("ATR_PW"))), "\n")
-          }
-          
-          ## packages
-          cat("\n=== LOADING PACKAGES ===\n")
-          tryCatch({
-            library(tidyRSS)
-            cat("Loaded tidyRSS\n")
-            library(atrrr)
-            cat("Loaded atrrr\n")
-            library(lubridate)
-            cat("Loaded lubridate\n")
-            library(dplyr)
-            cat("Loaded dplyr\n")
-            library(stringr)
-            cat("Loaded stringr\n")
-            library(glue)
-            cat("Loaded glue\n")
-            library(purrr)
-            cat("Loaded purrr\n")
-            library(xml2)
-            cat("Loaded xml2\n")
-            cat("All packages loaded successfully\n")
-          }, error = function(e) {
-            cat("ERROR LOADING PACKAGES:", conditionMessage(e), "\n")
-          })
-          
-          ## Original script with added diagnostics
-          # Continue with the rest of your script but with diagnostic logging
-          
-          cat("\n=== AUTHENTICATION ATTEMPT ===\n")
-          pw <- Sys.getenv("ATR_PW")
-          cat("Password variable retrieved, length:", nchar(pw), "characters\n")
-          
-          # Authenticate to Bluesky with detailed error trapping
-          auth_success <- FALSE
-          tryCatch({
-            cat("Attempting Bluesky authentication...\n")
-            auth(user = "speechpapers.bsky.social", password = pw, overwrite = TRUE)
-            cat("Authentication completed successfully\n")
-            auth_success <- TRUE
-          }, error = function(e) {
-            cat("AUTHENTICATION ERROR:", conditionMessage(e), "\n")
-            print(e)
-          })
-          
-          if (auth_success) {
-            cat("Testing API connection by retrieving account info...\n")
-            tryCatch({
-              # Test the API connection by retrieving some basic info
-              account_info <- get_skeets_authored_by("speechpapers.bsky.social", limit = 1)
-              cat("API connection test successful\n")
-            }, error = function(e) {
-              cat("API CONNECTION TEST ERROR:", conditionMessage(e), "\n")
-              print(e)
-            })
-            
-            # Try a direct test post if all else succeeds
-            tryCatch({
-              cat("Attempting test post to Bluesky...\n")
-              test_result <- post_skeet(
-                text = paste("Test post from GitHub Actions at", format(Sys.time(), "%Y-%m-%d %H:%M:%S")),
-                created_at = now(),
-                preview_card = FALSE
-              )
-              cat("TEST POST SUCCESSFUL\n")
-            }, error = function(e) {
-              cat("TEST POST ERROR:", conditionMessage(e), "\n")
-              print(e)
-            })
-          }
-          
-          # You can add more of your original script here
-          
-          cat("\n=== DIAGNOSTIC COMPLETE ===\n")
-          EOF
-          
-          # Run the diagnostic script
-          Rscript diagnostic-bluesky-script.R > diagnostic_output.log 2>&1
-          
-          # Display the log
-          cat diagnostic_output.log
-          
-          # Now run the actual script if diagnostics look good
-          Rscript -e '
-          tryCatch({
-            source("bot.R")
-            cat("Main script executed successfully\n")
-          }, error = function(e) {
-            cat("ERROR IN MAIN SCRIPT:", conditionMessage(e), "\n")
-          })
-          ' >> script_output.log 2>&1
-          
-          cat script_output.log
-          
+          # Display the log for troubleshooting
+          if [ -f bluesky_post_errors.log ]; then
+            echo "=== Bot Log Output ==="
+            cat bluesky_post_errors.log
+          fi
+      
       - name: Upload logs as artifacts
         uses: actions/upload-artifact@v4
         with:
           name: bluesky-logs
-          path: |
-            diagnostic_output.log
-            script_output.log
-            bluesky_post_errors.log
+          path: bluesky_post_errors.log
           if-no-files-found: ignore
