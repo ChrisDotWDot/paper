@@ -1,14 +1,14 @@
 name: "Update Bot"
 on:
   schedule:
-    - cron: '0 1,13 * * *'  # Runs twice daily at 1:00 and 13:00 UTC
+    - cron: '0 1,13 * * *'  ## Runs twice daily at 1:00 and 13:00 UTC
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Manual trigger for testing
+  workflow_dispatch:  ## Manual trigger for testing
 
 jobs:
   feed-updates:
