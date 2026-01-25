@@ -130,7 +130,7 @@ tryCatch({
   log_message("Posting details as reply...")
   detail_post <- post_skeet(
     text = detail_text,
-    reply_to = intro_post$uri,
+    in_reply_to = intro_post$uri,
     created_at = now()
   )
   
