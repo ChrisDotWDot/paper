@@ -20,11 +20,11 @@ log_message <- function(msg) {
 log_message("=== Starting Citation Classics ===")
 
 # Check if this is a bi-weekly Thursday (run every other week)
-week_num <- isoweek(today())
-if (week_num %% 2 != 0) {
-  log_message("Not a bi-weekly posting week - skipping")
-  quit(save = "no", status = 0)
-}
+#week_num <- isoweek(today())
+#if (week_num %% 2 != 0) {
+#  log_message("Not a bi-weekly posting week - skipping")
+#  quit(save = "no", status = 0)
+#}
 
 # Authenticate to Bluesky
 tryCatch({
