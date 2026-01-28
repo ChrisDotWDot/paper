@@ -20,11 +20,11 @@ log_message <- function(msg) {
 log_message("=== Starting Citation Classics ===")
 
 # Check if this is a bi-weekly Thursday (run every other week)
-#week_num <- isoweek(today())
-#if (week_num %% 2 != 0) {
-#  log_message("Not a bi-weekly posting week - skipping")
-#  quit(save = "no", status = 0)
-#}
+week_num <- isoweek(today())
+if (week_num %% 2 != 0) {
+  log_message("Not a bi-weekly posting week - skipping")
+  quit(save = "no", status = 0)
+}
 
 # Authenticate to Bluesky
 tryCatch({
@@ -76,7 +76,7 @@ if (!file.exists(classics_file)) {
       "Catherine Browman & Louis Goldstein"
     ),
     year = c(
-      1971,
+      1960,
       1957,
       1948,
       1951,
@@ -88,7 +88,7 @@ if (!file.exists(classics_file)) {
       1986
     ),
     citations_approx = c(
-      7825,
+      8500,
       5200,
       15000,
       12000,
@@ -100,7 +100,7 @@ if (!file.exists(classics_file)) {
       2800
     ),
     significance = c(
-      "This work laid the foundation for how we understand speech production today. The source-filter model explains how voice and vocal tract shape combine to create speech sounds. Every voice synthesis system uses these principles!",
+      "This paper laid the foundation for how we understand speech production today. The source-filter model explains how voice and vocal tract shape combine to create speech sounds. Every voice synthesis system uses these principles!",
       "Introduced the concept of categorical perception in speech - the idea that we perceive continuous acoustic signals as discrete phonetic categories. This revolutionized our understanding of how humans process speech sounds.",
       "While not speech-specific, Shannon's information theory provided the mathematical foundation for understanding communication systems, including speech transmission and coding. Still fundamental to all digital communication today.",
       "Established distinctive features as the building blocks of phonology. This framework influenced decades of linguistic theory and speech recognition systems by showing how sounds can be decomposed into binary features.",
@@ -112,8 +112,8 @@ if (!file.exists(classics_file)) {
       "Introduced articulatory phonology as a dynamic approach to speech production. Rather than static positions, speech involves coordinated gestural patterns - a paradigm shift in phonology."
     ),
     url = c(
-      "https://scholar.google.com/scholar?q=Fant+Acoustic+Theory+Speech+Production,Production",
-      "https://haskinslabs.org/sites/default/files/files/Reprints/HL0069.pdf",
+      "https://www.semanticscholar.org/paper/Acoustic-Theory-of-Speech-Production-Fant/",
+      "https://www.semanticscholar.org/paper/Speech-Perception-Liberman/",
       "https://ieeexplore.ieee.org/document/6773024",
       "https://www.semanticscholar.org/paper/Distinctive-Features-Jakobson/",
       "https://www.semanticscholar.org/paper/Motor-Theory-Liberman-Mattingly/",
@@ -167,36 +167,43 @@ today_classic <- available %>%
 
 log_message(paste("Selected classic ID:", today_classic$id, "-", today_classic$title))
 
-# Create post content
+# Create post content - start with a shorter version
+# Calculate available space for significance text
+title_part <- glue("\"{today_classic$title}\"")
+meta_part <- glue("{today_classic$authors} ({today_classic$year})")
+citations_part <- glue("Citations: {format(today_classic$citations_approx, big.mark = ',')}+")
+url_part <- glue("🔗 {today_classic$url}")
+hashtag_part <- "#SpeechScience"
+
+# Calculate overhead (emojis, line breaks, static text)
+overhead <- nchar("📚 Citation Classic\n\n\n\n\n\n\n\n") + 
+            nchar(title_part) + 
+            nchar(meta_part) + 
+            nchar(citations_part) + 
+            nchar(url_part) + 
+            nchar(hashtag_part)
+
+# Available space for significance (leave buffer for emoji grapheme counting)
+available_chars <- 250 - overhead
+
+# Truncate significance if needed
+significance_text <- if (nchar(today_classic$significance) > available_chars) {
+  str_trunc(today_classic$significance, available_chars, ellipsis = "...")
+} else {
+  today_classic$significance
+}
+
 post_text <- glue("📚 Citation Classic
 
 \"{today_classic$title}\"
 {today_classic$authors} ({today_classic$year})
 Citations: {format(today_classic$citations_approx, big.mark = ',')}+
 
-{today_classic$significance}
-
-🔗 {today_classic$url}
-
-#SpeechScience #{today_classic$field}")
-
-# Check length (Bluesky has 300 character limit)
-if (nchar(post_text) > 300) {
-  log_message(paste("Post too long (", nchar(post_text), "chars), truncating..."))
-  
-  # Create shorter version
-  post_text <- glue("📚 Citation Classic
-
-\"{today_classic$title}\"
-{today_classic$authors} ({today_classic$year})
-Citations: {format(today_classic$citations_approx, big.mark = ',')}+
-
-{str_trunc(today_classic$significance, 150)}
+{significance_text}
 
 🔗 {today_classic$url}
 
 #SpeechScience")
-}
 
 log_message(paste("Post length:", nchar(post_text), "characters"))
 
