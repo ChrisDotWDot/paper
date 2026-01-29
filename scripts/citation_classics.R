@@ -213,7 +213,7 @@ tryCatch({
   
   result <- post_skeet(
     text = post_text,
-    created_at = now()
+    created_at = now(),
     preview_card = FALSE
   )
   
