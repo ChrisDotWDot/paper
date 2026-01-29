@@ -18,9 +18,13 @@ pubmed_df <- map_df(pubmed_feeds, tidyfeed)
 
 # Vector of feeds of possible interest from bioRxiv, yields the last 30 days
 brv_feeds <- c("http://connect.biorxiv.org/biorxiv_xml.php?subject=neuroscience")
-
-# Read all the bioRxiv feeds
-brv <- map_df(brv_feeds, tidyfeed)
+# Read all the bioRxiv feeds with error handling
+brv <- tryCatch({
+  map_df(brv_feeds, tidyfeed)
+}, error = function(e) {
+  message("bioRxiv feed unavailable, skipping: ", e$message)
+  tibble(item_title = character(), item_description = character(), item_link = character())
+})
 
 # Filter for biorxiv feed keywords and trim the link
 brv_filt <- brv |> 
