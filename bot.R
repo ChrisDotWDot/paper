@@ -53,7 +53,7 @@ auth(user = "speechpapers.bsky.social",
      overwrite = TRUE)
 
 # Check for existing posts to avoid duplicates
-old_posts <- get_skeets_authored_by("speechpapers.bsky.social", limit = 5000L)
+old_posts <- get_skeets_authored_by("speechpapers.bsky.social", limit = 1000L)
 
 # Filter to post only new stuff
 posts_new <- posts |>
