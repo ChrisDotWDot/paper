@@ -117,22 +117,24 @@ detail_text <- glue("{today_fact$content}
 
 # Post to Bluesky
 tryCatch({
-  # Post intro
-  log_message("Posting intro...")
-  intro_post <- post_skeet(
-    text = intro_text,
-    created_at = now()
-  )
+# Post intro
+log_message("Posting intro...")
+intro_post <- post_skeet(
+  text = intro_text,
+  created_at = now(),
+  preview_card = FALSE
+)
   
   Sys.sleep(2)  # Brief pause between posts
   
-  # Post details as reply
-  log_message("Posting details as reply...")
-  detail_post <- post_skeet(
-    text = detail_text,
-    in_reply_to = intro_post$uri,
-    created_at = now()
-  )
+# Post details as reply
+log_message("Posting details as reply...")
+detail_post <- post_skeet(
+  text = detail_text,
+  in_reply_to = intro_post$uri,
+  created_at = now(),
+  preview_card = FALSE
+)
   
   log_message("Posts successful!")
   
