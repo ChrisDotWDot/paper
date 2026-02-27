@@ -1,5 +1,3 @@
-Could you update this whole script
-## packages
 library(tidyRSS)
 library(atrrr)
 library(lubridate)
