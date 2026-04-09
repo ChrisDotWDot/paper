@@ -167,27 +167,27 @@ today_classic <- available %>%
 
 log_message(paste("Selected classic ID:", today_classic$id, "-", today_classic$title))
 
-# Create post content - start with a shorter version
-# Calculate available space for significance text
-title_part <- glue("\"{today_classic$title}\"")
-meta_part <- glue("{today_classic$authors} ({today_classic$year})")
-citations_part <- glue("Citations: {format(today_classic$citations_approx, big.mark = ',')}+")
-url_part <- glue("🔗 {today_classic$url}")
-hashtag_part <- "#SpeechScience"
+# Build post template without significance to measure true overhead
+post_template <- glue("📚 Citation Classic
 
-# Calculate overhead (emojis, line breaks, static text)
-overhead <- nchar("📚 Citation Classic\n\n\n\n\n\n\n\n") + 
-            nchar(title_part) + 
-            nchar(meta_part) + 
-            nchar(citations_part) + 
-            nchar(url_part) + 
-            nchar(hashtag_part)
+\"{today_classic$title}\"
+{today_classic$authors} ({today_classic$year})
+Citations: {format(today_classic$citations_approx, big.mark = ',')}+
 
-# Available space for significance (leave buffer for emoji grapheme counting)
-available_chars <- 250 - overhead
+[SIGNIFICANCE]
+
+🔗 {today_classic$url}
+
+#SpeechScience")
+
+# Bluesky limit is 300 graphemes; calculate true available space
+overhead <- nchar(post_template) - nchar("[SIGNIFICANCE]")
+available_chars <- max(0, 300 - overhead)
 
 # Truncate significance if needed
-significance_text <- if (nchar(today_classic$significance) > available_chars) {
+significance_text <- if (available_chars < 3) {
+  ""  # No room at all for significance
+} else if (nchar(today_classic$significance) > available_chars) {
   str_trunc(today_classic$significance, available_chars, ellipsis = "...")
 } else {
   today_classic$significance
