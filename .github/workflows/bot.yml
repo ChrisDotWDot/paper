@@ -37,6 +37,7 @@ jobs:
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
           R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+          PKG_SYSREQS: false
         run: |
           Sys.setenv(GITHUB_PAT = Sys.getenv("GITHUB_PAT"))
           install.packages("pak", repos = "https://cloud.r-project.org")
