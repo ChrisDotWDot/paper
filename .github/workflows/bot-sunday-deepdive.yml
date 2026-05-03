@@ -31,6 +31,7 @@ jobs:
       - name: Install R packages
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+          PKG_SYSREQS: false
         run: |
           install.packages("pak", repos = "https://cloud.r-project.org")
           pak::pkg_install(c(
