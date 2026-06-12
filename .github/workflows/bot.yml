@@ -50,7 +50,7 @@ jobs:
             "purrr",
             "xml2",
             "JBGruber/atrrr"
-          ), dependencies = TRUE)
+          ), dependencies = c("Depends", "Imports", "LinkingTo"))
         shell: Rscript {0}
 
       - name: Run bot
