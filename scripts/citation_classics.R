@@ -1,6 +1,5 @@
 # scripts/citation_classics.R
 # Posts highly-cited speech science papers bi-weekly
-
 library(atrrr)
 library(dplyr)
 library(readr)
@@ -9,23 +8,19 @@ library(lubridate)
 library(stringr)
 library(httr)
 library(jsonlite)
-
 # Initialize logging
 log_file <- "citation_classics.log"
 log_message <- function(msg) {
   write(paste(now(), "-", msg), file = log_file, append = TRUE)
   message(msg)
 }
-
 log_message("=== Starting Citation Classics ===")
-
 # Check if this is a bi-weekly Thursday (run every other week)
 #week_num <- isoweek(today())
 #if (week_num %% 2 != 0) {
  # log_message("Not a bi-weekly posting week - skipping")
  # quit(save = "no", status = 0)
 #}
-
 # Authenticate to Bluesky
 tryCatch({
   pw <- Sys.getenv("ATR_PW")
@@ -39,11 +34,9 @@ tryCatch({
   log_message(paste("Authentication failed:", toString(e)))
   stop(e)
 })
-
 # Load curated classics
 classics_file <- "content/classics/citation-classics.csv"
 posted_file <- "content/classics/posted-classics.csv"
-
 # Check if files exist
 if (!file.exists(classics_file)) {
   log_message("ERROR: Classics file not found. Creating sample file...")
@@ -133,11 +126,9 @@ if (!file.exists(classics_file)) {
   write_csv(sample_classics, classics_file)
   log_message("Sample classics file created")
 }
-
 # Load classics
 classics <- read_csv(classics_file, show_col_types = FALSE)
 log_message(paste("Loaded", nrow(classics), "classics"))
-
 # Load or create posted tracker
 if (file.exists(posted_file)) {
   posted_classics <- read_csv(posted_file, show_col_types = FALSE)
@@ -147,11 +138,9 @@ if (file.exists(posted_file)) {
   write_csv(posted_classics, posted_file)
   log_message("Created new posted classics tracker")
 }
-
 # Get available classics
 available <- classics %>% 
   anti_join(posted_classics, by = "id")
-
 # Reset if all classics posted
 if (nrow(available) == 0) {
   log_message("All classics posted - resetting tracker")
@@ -159,31 +148,22 @@ if (nrow(available) == 0) {
   available <- classics
   write_csv(posted_classics, posted_file)
 }
-
 # Select classic (prioritize highest citations)
 today_classic <- available %>%
   arrange(desc(citations_approx)) %>%
   slice(1)
-
 log_message(paste("Selected classic ID:", today_classic$id, "-", today_classic$title))
-
 # Build post template without significance to measure true overhead
 post_template <- glue("📚 Citation Classic
-
 \"{today_classic$title}\"
 {today_classic$authors} ({today_classic$year})
 Citations: {format(today_classic$citations_approx, big.mark = ',')}+
-
 [SIGNIFICANCE]
-
 🔗 {today_classic$url}
-
 #SpeechScience")
-
 # Bluesky limit is 300 graphemes; calculate true available space
 overhead <- nchar(post_template) - nchar("[SIGNIFICANCE]")
 available_chars <- max(0, 300 - overhead)
-
 # Truncate significance if needed
 significance_text <- if (available_chars < 3) {
   ""  # No room at all for significance
@@ -192,21 +172,41 @@ significance_text <- if (available_chars < 3) {
 } else {
   today_classic$significance
 }
-
 post_text <- glue("📚 Citation Classic
-
 \"{today_classic$title}\"
 {today_classic$authors} ({today_classic$year})
 Citations: {format(today_classic$citations_approx, big.mark = ',')}+
-
 {significance_text}
-
 🔗 {today_classic$url}
-
 #SpeechScience")
 
-log_message(paste("Post length:", nchar(post_text), "characters"))
+# --- Final safety-net guard -------------------------------------------------
+# The significance truncation above only bounds THAT field. If the title,
+# authors, or url are themselves long (e.g. a long DOI/ResearchGate link),
+# post_text can still exceed Bluesky's 300 grapheme limit even after
+# significance_text is trimmed to "". This is a belt-and-braces check that
+# hard-truncates the whole post as a last resort, so one oversized CSV row
+# can never halt the workflow again.
+grapheme_count <- function(x) {
+  if (requireNamespace("stringi", quietly = TRUE)) {
+    stringi::stri_length(x)
+  } else {
+    nchar(x, type = "chars")
+  }
+}
 
+post_length <- grapheme_count(post_text)
+if (post_length > 300) {
+  log_message(paste0(
+    "WARNING: post_text was ", post_length,
+    " graphemes even after significance truncation - hard-truncating to 300. ",
+    "Check id ", today_classic$id, " (", today_classic$title,
+    ") - title/authors/url may be too long, e.g. a long URL."
+  ))
+  post_text <- str_trunc(post_text, 300, ellipsis = "...")
+}
+
+log_message(paste("Post length:", grapheme_count(post_text), "characters"))
 # Post to Bluesky
 tryCatch({
   log_message("Posting citation classic...")
@@ -231,5 +231,4 @@ tryCatch({
   log_message(paste("ERROR posting:", toString(e)))
   stop(e)
 })
-
 log_message("=== Citation Classics Complete ===")
