@@ -6,22 +6,17 @@ library(readr)
 library(glue)
 library(lubridate)
 library(stringr)
-library(httr)
-library(jsonlite)
+
 # Initialize logging
 log_file <- "citation_classics.log"
 log_message <- function(msg) {
   write(paste(now(), "-", msg), file = log_file, append = TRUE)
   message(msg)
 }
+
 log_message("=== Starting Citation Classics ===")
-log_message("SCRIPT VERSION: grapheme-guard-v1")
-# Check if this is a bi-weekly Thursday (run every other week)
-#week_num <- isoweek(today())
-#if (week_num %% 2 != 0) {
- # log_message("Not a bi-weekly posting week - skipping")
- # quit(save = "no", status = 0)
-#}
+log_message("SCRIPT VERSION: grapheme-guard-v2-smart-assemble")
+
 # Authenticate to Bluesky
 tryCatch({
   pw <- Sys.getenv("ATR_PW")
@@ -35,101 +30,15 @@ tryCatch({
   log_message(paste("Authentication failed:", toString(e)))
   stop(e)
 })
+
 # Load curated classics
 classics_file <- "content/classics/citation-classics.csv"
 posted_file <- "content/classics/posted-classics.csv"
-# Check if files exist
-if (!file.exists(classics_file)) {
-  log_message("ERROR: Classics file not found. Creating sample file...")
-  
-  # Create sample content with curated classic papers
-  sample_classics <- tibble(
-    id = 1:10,
-    title = c(
-      "Acoustic Theory of Speech Production",
-      "Theory of Speech Perception",
-      "A Mathematical Theory of Communication",
-      "Distinctive Features and Phonological Opposition",
-      "The Motor Theory of Speech Perception",
-      "Coarticulation and Connected Speech Processes",
-      "Source-Filter Theory",
-      "Speech Perception by the Human Brain",
-      "Hidden Markov Models for Speech Recognition",
-      "Articulatory Phonology"
-    ),
-    authors = c(
-      "Gunnar Fant",
-      "Alvin Liberman",
-      "Claude Shannon",
-      "Roman Jakobson",
-      "Liberman & Mattingly",
-      "Patricia Keating",
-      "Gunnar Fant",
-      "David Poeppel",
-      "Lawrence Rabiner",
-      "Catherine Browman & Louis Goldstein"
-    ),
-    year = c(
-      1960,
-      1957,
-      1948,
-      1951,
-      1985,
-      1990,
-      1960,
-      2003,
-      1989,
-      1986
-    ),
-    citations_approx = c(
-      8500,
-      5200,
-      15000,
-      12000,
-      3400,
-      2100,
-      8500,
-      1800,
-      25000,
-      2800
-    ),
-    significance = c(
-      "This paper laid the foundation for how we understand speech production today. The source-filter model explains how voice and vocal tract shape combine to create speech sounds. Every voice synthesis system uses these principles!",
-      "Introduced the concept of categorical perception in speech - the idea that we perceive continuous acoustic signals as discrete phonetic categories. This revolutionized our understanding of how humans process speech sounds.",
-      "While not speech-specific, Shannon's information theory provided the mathematical foundation for understanding communication systems, including speech transmission and coding. Still fundamental to all digital communication today.",
-      "Established distinctive features as the building blocks of phonology. This framework influenced decades of linguistic theory and speech recognition systems by showing how sounds can be decomposed into binary features.",
-      "Proposed that speech perception involves motor simulation - we understand speech by mentally simulating how we would produce those sounds. Still debated today, but hugely influential in speech science.",
-      "Systematically described how speech sounds overlap and influence each other in connected speech. Essential for understanding the difference between isolated sounds and natural, fluent speech production.",
-      "Fant's source-filter theory separated the sound source (vocal folds) from the filter (vocal tract). This elegant model is still the basis of speech synthesis and analysis 60+ years later.",
-      "Integrated neuroscience with speech perception, proposing dual processing streams in the brain. Changed how we think about the neural basis of language and speech processing.",
-      "Provided the statistical framework that revolutionized speech recognition. HMMs enabled the first practical large-vocabulary speech recognition systems and dominated the field for decades.",
-      "Introduced articulatory phonology as a dynamic approach to speech production. Rather than static positions, speech involves coordinated gestural patterns - a paradigm shift in phonology."
-    ),
-    url = c(
-      "https://www.semanticscholar.org/paper/Acoustic-Theory-of-Speech-Production-Fant/",
-      "https://www.semanticscholar.org/paper/Speech-Perception-Liberman/",
-      "https://ieeexplore.ieee.org/document/6773024",
-      "https://www.semanticscholar.org/paper/Distinctive-Features-Jakobson/",
-      "https://www.semanticscholar.org/paper/Motor-Theory-Liberman-Mattingly/",
-      "https://www.semanticscholar.org/paper/Coarticulation-Keating/",
-      "https://www.semanticscholar.org/paper/Source-Filter-Fant/",
-      "https://www.semanticscholar.org/paper/Speech-Perception-Poeppel/",
-      "https://ieeexplore.ieee.org/document/18626",
-      "https://www.semanticscholar.org/paper/Articulatory-Phonology-Browman-Goldstein/"
-    ),
-    field = c(
-      "Production", "Perception", "Information", "Phonology", "Perception",
-      "Production", "Production", "Neuroscience", "Technology", "Phonology"
-    )
-  )
-  
-  dir.create("content/classics", recursive = TRUE, showWarnings = FALSE)
-  write_csv(sample_classics, classics_file)
-  log_message("Sample classics file created")
-}
+
 # Load classics
 classics <- read_csv(classics_file, show_col_types = FALSE)
 log_message(paste("Loaded", nrow(classics), "classics"))
+
 # Load or create posted tracker
 if (file.exists(posted_file)) {
   posted_classics <- read_csv(posted_file, show_col_types = FALSE)
@@ -139,9 +48,11 @@ if (file.exists(posted_file)) {
   write_csv(posted_classics, posted_file)
   log_message("Created new posted classics tracker")
 }
+
 # Get available classics
 available <- classics %>% 
   anti_join(posted_classics, by = "id")
+
 # Reset if all classics posted
 if (nrow(available) == 0) {
   log_message("All classics posted - resetting tracker")
@@ -149,62 +60,81 @@ if (nrow(available) == 0) {
   available <- classics
   write_csv(posted_classics, posted_file)
 }
+
 # Select classic (prioritize highest citations)
 today_classic <- available %>%
   arrange(desc(citations_approx)) %>%
   slice(1)
-log_message(paste("Selected classic ID:", today_classic$id, "-", today_classic$title))
-# Build post template without significance to measure true overhead
-post_template <- glue("📚 Citation Classic
-\"{today_classic$title}\"
-{today_classic$authors} ({today_classic$year})
-Citations: {format(today_classic$citations_approx, big.mark = ',')}+
-[SIGNIFICANCE]
-🔗 {today_classic$url}
-#SpeechScience")
-# Bluesky limit is 300 graphemes; calculate true available space
-overhead <- nchar(post_template) - nchar("[SIGNIFICANCE]")
-available_chars <- max(0, 300 - overhead)
-# Truncate significance if needed
-significance_text <- if (available_chars < 3) {
-  ""  # No room at all for significance
-} else if (nchar(today_classic$significance) > available_chars) {
-  str_trunc(today_classic$significance, available_chars, ellipsis = "...")
-} else {
-  today_classic$significance
-}
-post_text <- glue("📚 Citation Classic
-\"{today_classic$title}\"
-{today_classic$authors} ({today_classic$year})
-Citations: {format(today_classic$citations_approx, big.mark = ',')}+
-{significance_text}
-🔗 {today_classic$url}
-#SpeechScience")
 
-# --- Final safety-net guard -------------------------------------------------
-grapheme_count <- function(x) {
-  if (requireNamespace("stringi", quietly = TRUE)) {
-    stringi::stri_length(x)
-  } else {
-    nchar(x, type = "chars")
+log_message(paste("Selected classic ID:", today_classic$id, "-", today_classic$title))
+
+# --- Robust Truncation Logic ---
+# Calculate the fixed parts of the tweet so we NEVER truncate the URL or tags
+fixed_author_line <- paste0(today_classic$authors, " (", today_classic$year, ")")
+fixed_stats_line <- paste0("Citations: ", format(today_classic$citations_approx, big.mark = ','), "+")
+fixed_url_line <- paste0("🔗 ", today_classic$url)
+fixed_tags_line <- "#SpeechScience"
+
+# Base length of the absolute mandatory components including newlines
+base_components <- paste(
+  "📚 Citation Classic",
+  "\"\"", # placeholder for title quotes
+  fixed_author_line,
+  fixed_stats_line,
+  fixed_url_line,
+  fixed_tags_line,
+  sep = "\n"
+)
+
+base_len <- nchar(base_components)
+max_allowed <- 295 # Bluesky limit is 300, leaving a 5-char buffer just in case
+available_space <- max_allowed - base_len
+
+title_text <- today_classic$title
+sig_text <- today_classic$significance
+
+# 1. Check if we need to truncate the title itself
+if (nchar(title_text) > available_space) {
+  # Title + URL is so long we have to truncate the title and remove significance entirely
+  allowed_title_len <- max(0, available_space - 3)
+  title_text <- paste0(substr(title_text, 1, allowed_title_len), "...")
+  sig_text <- ""
+} else {
+  # 2. We have room for the title. Do we have room for significance?
+  space_for_sig <- available_space - nchar(title_text) - 1 # -1 for newline
+  
+  if (isTRUE(is.na(sig_text))) {
+    sig_text <- ""
+  } else if (space_for_sig < 10) {
+    sig_text <- "" # Not enough room to bother
+  } else if (nchar(sig_text) > space_for_sig) {
+    sig_text <- paste0(substr(sig_text, 1, space_for_sig - 3), "...")
   }
 }
 
-post_length <- grapheme_count(post_text)
+# Assemble final post text safely
+lines <- c(
+  "📚 Citation Classic",
+  paste0("\"", title_text, "\""),
+  fixed_author_line,
+  fixed_stats_line
+)
 
-# If it's still over 300, forcefully truncate the entire text using base R.
-# We cut to 297 to leave room for the "..."
-if (post_length > 300) {
-  log_message(paste0(
-    "WARNING: post_text was ", post_length,
-    " graphemes even after significance truncation - hard-truncating to 300."
-  ))
-  
-  # Base R fallback guarantees truncation even if stringr fails
-  post_text <- paste0(substr(post_text, 1, 297), "...")
+# Only add significance if it isn't empty
+if (sig_text != "") {
+  lines <- c(lines, sig_text)
 }
 
-log_message(paste("Post length:", grapheme_count(post_text), "characters"))
+lines <- c(lines, fixed_url_line, fixed_tags_line)
+post_text <- paste(lines, collapse = "\n")
+
+log_message(paste("Post length:", nchar(post_text), "characters"))
+
+# Final brute-force safety check (should never trigger, but keeps action from failing)
+if (nchar(post_text) > 300) {
+  log_message("WARNING: Post text still over 300! Applying strict fallback.")
+  post_text <- paste0(substr(post_text, 1, 297), "...")
+}
 
 # Post to Bluesky
 tryCatch({
@@ -230,4 +160,5 @@ tryCatch({
   log_message(paste("ERROR posting:", toString(e)))
   stop(e)
 })
+
 log_message("=== Citation Classics Complete ===")
