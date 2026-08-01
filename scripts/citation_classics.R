@@ -182,12 +182,6 @@ Citations: {format(today_classic$citations_approx, big.mark = ',')}+
 #SpeechScience")
 
 # --- Final safety-net guard -------------------------------------------------
-# The significance truncation above only bounds THAT field. If the title,
-# authors, or url are themselves long (e.g. a long DOI/ResearchGate link),
-# post_text can still exceed Bluesky's 300 grapheme limit even after
-# significance_text is trimmed to "". This is a belt-and-braces check that
-# hard-truncates the whole post as a last resort, so one oversized CSV row
-# can never halt the workflow again.
 grapheme_count <- function(x) {
   if (requireNamespace("stringi", quietly = TRUE)) {
     stringi::stri_length(x)
@@ -197,17 +191,21 @@ grapheme_count <- function(x) {
 }
 
 post_length <- grapheme_count(post_text)
+
+# If it's still over 300, forcefully truncate the entire text using base R.
+# We cut to 297 to leave room for the "..."
 if (post_length > 300) {
   log_message(paste0(
     "WARNING: post_text was ", post_length,
-    " graphemes even after significance truncation - hard-truncating to 300. ",
-    "Check id ", today_classic$id, " (", today_classic$title,
-    ") - title/authors/url may be too long, e.g. a long URL."
+    " graphemes even after significance truncation - hard-truncating to 300."
   ))
-  post_text <- str_trunc(post_text, 300, ellipsis = "...")
+  
+  # Base R fallback guarantees truncation even if stringr fails
+  post_text <- paste0(substr(post_text, 1, 297), "...")
 }
 
 log_message(paste("Post length:", grapheme_count(post_text), "characters"))
+
 # Post to Bluesky
 tryCatch({
   log_message("Posting citation classic...")
