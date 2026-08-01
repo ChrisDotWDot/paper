@@ -31,8 +31,11 @@ jobs:
       - name: Install R packages
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-          PKG_SYSREQS: "false"  # system libs are already installed above; skip pak's own sudo apt-get sysreqs step, which is a common source of CI flakiness
         run: |
+          # Explicitly disable pak system requirement installations via R options
+          options(pkg.sysreqs = FALSE)
+          Sys.setenv(PKG_SYSREQS = "false")
+          
           install.packages("pak", repos = "https://cloud.r-project.org")
           pak::pkg_install(c(
             "dplyr",
