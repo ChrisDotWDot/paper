@@ -15,6 +15,7 @@ log_message <- function(msg) {
   message(msg)
 }
 log_message("=== Starting Citation Classics ===")
+log_message("SCRIPT VERSION: grapheme-guard-v1")
 # Check if this is a bi-weekly Thursday (run every other week)
 #week_num <- isoweek(today())
 #if (week_num %% 2 != 0) {
